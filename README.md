@@ -1,26 +1,4 @@
 # Logic Gates Arabic — بوابات المنطق
-
-تطبيق أعمل عليه باستخدام Kotlin وJetpack Compose، يساعد على تحويل العبارات المنطقية المكتوبة إلى دوائر بوابات منطقية بشكل تلقائي.
-
-فكرة التطبيق:
-- كتابة العبارة المنطقية.
-- تحليلها وتحويلها إلى AST.
-- إنشاء شبكة البوابات المنطقية.
-- ترتيب البوابات تلقائيًا.
-- رسم رموز البوابات وتوصيلها بالأسلاك.
-
-التقنيات المستخدمة:
-- Kotlin
-- Jetpack Compose
-- Android
-- AST Parser
-- Logic Gate Circuit Renderer
-
-## تشغيل المشروع
-
-يمكن فتح المشروع في Android Studio وتشغيله مباشرة.
-
-أو استخدام:
-
-```bash
-gradle assembleDebug
+Kotlin + Jetpack Compose. تحليل عبارة منطقية ← AST ← شبكة بوابات ← ترتيب تلقائي ← رسم رموز البوابات.
+البناء: ادفع المشروع إلى GitHub ← تبويب Actions ← Build APK ← Artifacts ← LogicGatesArabic-APK.
+محليًا: افتح المجلد في Android Studio ثم Run، أو `gradle assembleDebug`.

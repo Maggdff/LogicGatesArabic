@@ -51,4 +51,41 @@ class LogicTest {
         val c = CircuitGen.build(parse("(P ∧ Q) ∨ R"))
         assertTrue(c.edges.all { c.nodes[it.dst].lvl - c.nodes[it.src].lvl == 1 })
     }
+
+    private val P = V("P"); private val Q = V("Q"); private val R = V("R")
+
+    @Test fun implicationOrderKeptThroughAllSteps() {
+        val a = Bin(Op.AND, P, Not(Q)); val x = Bin(Op.XOR, P, R)
+        val xor = Bin(Op.OR, Bin(Op.AND, P, Not(R)), Bin(Op.AND, Not(P), R))
+        val steps = Simplifier.run(Bin(Op.IMP, a, x))
+        assertEquals("تعريف XOR", steps[0].first)
+        val s0 = steps[0].second as Bin
+        assertEquals(Op.IMP, s0.op); assertEquals(a, s0.l); assertEquals(xor, s0.r)
+        assertEquals("(P ∧ ¬Q) → ((P ∧ ¬R) ∨ (¬P ∧ R))", s0.str())
+        assertEquals("إزالة الشرط", steps[1].first)
+        val s1 = steps[1].second as Bin
+        assertEquals(Op.OR, s1.op); assertEquals(Not(a), s1.l); assertEquals(xor, s1.r)
+        assertEquals("¬(P ∧ ¬Q) ∨ ((P ∧ ¬R) ∨ (¬P ∧ R))", s1.str())
+        assertEquals("قانون دي مورغان", steps[2].first)
+        assertEquals("قانون النفي المزدوج", steps[3].first)
+        assertEquals("(¬P ∨ Q) ∨ ((P ∧ ¬R) ∨ (¬P ∧ R))", steps[3].second.str())
+    }
+    @Test fun userExampleFinalResult() {
+        val steps = Simplifier.run(parse("(P ∧ ¬Q) → (P ⊕ R)"))
+        assertEquals("¬P ∨ Q ∨ ¬R", steps.last().second.str(flat = true))
+    }
+    @Test fun implicationIsNeverReversed() {
+        val pairs = listOf(P to Q, Bin(Op.AND, P, Q) to Not(R), Bin(Op.XOR, P, R) to Q, Not(P) to Bin(Op.OR, Q, R))
+        for ((a, b) in pairs) {
+            val first = Simplifier.run(Bin(Op.IMP, a, b)).first().second
+            assertEquals(Bin(Op.OR, Not(a), b), first)
+            assertNotEquals(Bin(Op.OR, Not(b), a), first)
+        }
+    }
+    @Test fun everyStepIsEquivalentToOriginal() {
+        for (s in listOf("(P ∧ ¬Q) → (P ⊕ R)", "P ↔ Q", "(P → Q) ∧ (Q → R)", "¬(P ∨ (Q ∧ R))", "P ⊕ Q", "P NAND Q")) {
+            val orig = parse(s)
+            for ((law, step) in Simplifier.run(orig)) assertNull("$s @ $law", findDiff(orig, step))
+        }
+    }
 }

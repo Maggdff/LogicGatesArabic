@@ -81,11 +81,14 @@ fun Node.ev(e: Map<String, Boolean>): Boolean = when (this) {
             Op.NOR -> !(x || y); Op.XNOR -> x == y; Op.IMP -> !x || y; Op.IFF -> x == y } }
 }
 
-fun Node.str(top: Boolean = true): String = when (this) {
+fun Node.str(top: Boolean = true, flat: Boolean = false): String = when (this) {
     is V -> n
     is K -> if (v) "1" else "0"
-    is Not -> "¬" + a.str(false)
-    is Bin -> { val s = "${l.str(false)} ${op.sym} ${r.str(false)}"; if (top) s else "($s)" }
+    is Not -> "¬" + a.str(false, flat)
+    is Bin -> {
+        fun part(x: Node) = if (flat && x is Bin && x.op == op && (op == Op.AND || op == Op.OR)) x.str(true, flat) else x.str(false, flat)
+        val s = "${part(l)} ${op.sym} ${part(r)}"; if (top) s else "($s)"
+    }
 }
 
 fun truthTable(n: Node, vs: List<String> = n.vars().sorted()): List<Pair<List<Boolean>, Boolean>> =
@@ -132,7 +135,7 @@ object Simplifier {
         }
         val and = n.op == Op.AND
         val id = K(and); val ab = K(!and); val inv = if (and) Op.OR else Op.AND
-        return when {
+        val res = when {
             l == r -> l to "قانون التماثل"
             l == id -> r to "قانون الهوية"
             r == id -> l to "قانون الهوية"
@@ -150,6 +153,33 @@ object Simplifier {
             }
             else -> null
         }
+        return res ?: nary(n)
+    }
+
+    private fun flat(n: Node, op: Op): List<Node> = if (n is Bin && n.op == op) flat(n.l, op) + flat(n.r, op) else listOf(n)
+    private fun comp(a: Node, b: Node) = a == Not(b) || b == Not(a)
+
+    /** قواعد على سلسلة AND/OR كاملة (3 معاملات أو أكثر) دون تغيير ترتيب المعاملات. */
+    private fun nary(n: Bin): Pair<Node, String>? {
+        val and = n.op == Op.AND; val inv = if (and) Op.OR else Op.AND
+        val id = K(and); val ab = K(!and)
+        val ops = flat(n, n.op)
+        if (ops.size < 3) return null
+        fun build(l: List<Node>): Node = l.reduce { x, y -> Bin(n.op, x, y) }
+        for (i in ops.indices) for (j in ops.indices) {
+            if (i == j) continue
+            val a = ops[i]; val b = ops[j]
+            if (a == b && i < j) return build(ops.filterIndexed { k, _ -> k != j }) to "قانون التماثل"
+            if (a == id) return build(ops.filterIndexed { k, _ -> k != i }) to "قانون الهوية"
+            if (a == ab) return ab to "قانون الهيمنة"
+            if (comp(a, b)) return ab to (if (and) "قانون التناقض" else "قانون النفي")
+            if (b is Bin && b.op == inv) {
+                if (b.l == a || b.r == a) return build(ops.filterIndexed { k, _ -> k != j }) to "قانون الامتصاص"
+                if (comp(a, b.l)) return build(ops.mapIndexed { k, x -> if (k == j) b.r else x }) to "قانون الامتصاص (الصيغة المعممة)"
+                if (comp(a, b.r)) return build(ops.mapIndexed { k, x -> if (k == j) b.l else x }) to "قانون الامتصاص (الصيغة المعممة)"
+            }
+        }
+        return null
     }
 
     private fun step(n: Node): Pair<Node, String>? {

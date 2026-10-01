@@ -11,7 +11,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -102,20 +104,14 @@ fun App(vm: VM = viewModel()) {
         }
         when (vm.panel) {
             "truth" -> vm.ast?.let { n ->
-                val vs = n.vars().sorted()
-                if (vs.size > 8) Text("عدد المتغيرات كبير (الحد الأقصى 8).") else {
-                    Row { (vs + "Y").forEach { Text(it, Modifier.weight(1f), textAlign = TextAlign.Center, fontWeight = FontWeight.Bold) } }
-                    HorizontalDivider()
-                    truthTable(n, vs).forEach { (bits, y) ->
-                        Row { (bits + y).forEach { Text(if (it) "1" else "0", Modifier.weight(1f), textAlign = TextAlign.Center) } }
-                    }
-                }
+                if (n.vars().size > 6) Text("عدد المتغيرات كبير (الحد الأقصى 6 لعرض الجدول).") else TruthTable(n)
             }
             "simp" -> vm.ast?.let { n ->
                 Text("العبارة الأصلية: ${n.str()}", fontWeight = FontWeight.Bold)
                 val steps = Simplifier.run(n)
                 if (steps.isEmpty()) Text("العبارة مبسطة بالفعل.")
                 steps.forEach { (law, r) -> Text("↓ $law"); Text(r.str(), style = ltr) }
+                if (steps.isNotEmpty()) Text("النتيجة النهائية: ${steps.last().second.str(flat = true)}", fontWeight = FontWeight.Bold, style = ltr)
             }
             "explain" -> c?.explain()?.forEach { Text(it) }
             "eq" -> {
@@ -166,6 +162,54 @@ fun CircuitView(c: Circuit, vals: Map<Int, Boolean>, onToggle: (String) -> Unit)
         .pointerInput(c) { detectTapGestures { p -> val w = (p - off) / sc; c.hit(w.x, w.y)?.let(onToggle) } }) {
         Canvas(Modifier.fillMaxSize()) {
             withTransform({ translate(off.x, off.y); scale(sc, sc, Offset.Zero) }) { drawCircuit(c, vals) }
+        }
+    }
+}
+
+
+private val NAVY = Color(0xFF1B3A63)
+private val LINE = Color(0xFFC9D6EE)
+
+/** جدول صواب وخطأ (T/F): عمود لكل متغير ولكل عبارة جزئية، والعمود الأخير هو الناتج. */
+@Composable
+fun TruthTable(n: Node) {
+    val vs = n.vars().sorted()
+    val subs = ArrayList<Node>()
+    fun walk(x: Node) {
+        when (x) {
+            is Not -> { walk(x.a); if (x !in subs) subs.add(x) }
+            is Bin -> { walk(x.l); walk(x.r); if (x !in subs) subs.add(x) }
+            else -> {}
+        }
+    }
+    walk(n)
+    val cols: List<Node> = vs.map { V(it) as Node } + subs
+    val rows = (0 until (1 shl vs.size)).map { m ->
+        val env = vs.indices.associate { vs[it] to (((m shr (vs.size - 1 - it)) and 1) == 0) }
+        cols.map { it.ev(env) }
+    }
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Row(Modifier.horizontalScroll(rememberScrollState())) {
+            cols.forEachIndexed { ci, node ->
+                val title = node.str()
+                val w = (title.length * 10 + 28).coerceIn(64, 240).dp
+                Column {
+                    Box(Modifier.width(w).height(48.dp).background(NAVY).border(1.dp, LINE), contentAlignment = Alignment.Center) {
+                        Text(title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                    Box(if (ci == cols.lastIndex) Modifier.border(3.dp, Color.Red, RoundedCornerShape(50)) else Modifier) {
+                        Column {
+                            rows.forEachIndexed { ri, r ->
+                                Box(Modifier.width(w).height(44.dp)
+                                    .background(if (ri % 2 == 0) Color.White else Color(0xFFF4F6FF)).border(0.5.dp, LINE),
+                                    contentAlignment = Alignment.Center) {
+                                    Text(if (r[ci]) "T" else "F", fontSize = 18.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
