@@ -77,9 +77,14 @@ class LogicTest {
     @Test fun implicationIsNeverReversed() {
         val pairs = listOf(P to Q, Bin(Op.AND, P, Q) to Not(R), Bin(Op.XOR, P, R) to Q, Not(P) to Bin(Op.OR, Q, R))
         for ((a, b) in pairs) {
-            val first = Simplifier.run(Bin(Op.IMP, a, b)).first().second
-            assertEquals(Bin(Op.OR, Not(a), b), first)
-            assertNotEquals(Bin(Op.OR, Not(b), a), first)
+            val orig = Bin(Op.IMP, a, b)
+            val steps = Simplifier.run(orig)
+            val k = steps.indexOfFirst { it.first == "إزالة الشرط" }
+            assertTrue("no implication step for ${orig.str()}", k >= 0)
+            val before = (if (k == 0) orig else steps[k - 1].second) as Bin
+            assertEquals(Op.IMP, before.op)
+            assertEquals(Bin(Op.OR, Not(before.l), before.r), steps[k].second)
+            assertNotEquals(Bin(Op.OR, Not(before.r), before.l), steps[k].second)
         }
     }
     @Test fun everyStepIsEquivalentToOriginal() {
