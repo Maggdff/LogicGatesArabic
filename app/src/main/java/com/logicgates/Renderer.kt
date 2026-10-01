@@ -92,9 +92,12 @@ fun exportPng(ctx: Context, c: Circuit, vals: Map<Int, Boolean>?): Uri? {
     val cv = ContentValues().apply {
         put(MediaStore.Images.Media.DISPLAY_NAME, "circuit_${System.currentTimeMillis()}.png")
         put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-        put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/LogicGates")
+        if (android.os.Build.VERSION.SDK_INT >= 29)
+            put(MediaStore.Images.Media.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/LogicGates")
     }
-    val uri = ctx.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv) ?: return null
-    ctx.contentResolver.openOutputStream(uri)?.use { bmp.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-    return uri
+    return try {
+        val uri = ctx.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv) ?: return null
+        ctx.contentResolver.openOutputStream(uri)?.use { bmp.asAndroidBitmap().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        uri
+    } catch (e: Exception) { null }
 }
