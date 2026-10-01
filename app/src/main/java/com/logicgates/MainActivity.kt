@@ -65,6 +65,8 @@ fun App(vm: VM = viewModel()) {
     val ltr = TextStyle(fontSize = 20.sp, textDirection = TextDirection.Ltr)
     Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("من تطوير maggd alosimi", Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+            color = Color(0xFF1565C0), fontWeight = FontWeight.Bold, fontSize = 16.sp)
         Text("رسم الدوائر المنطقية", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         OutlinedTextField(vm.tf, { vm.tf = it }, Modifier.fillMaxWidth(), label = { Text("اكتب العبارة المنطقية") }, textStyle = ltr)
         vm.error?.let { Text(it, color = Color(0xFFC62828)) }
